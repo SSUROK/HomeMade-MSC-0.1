@@ -4,6 +4,8 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 public class SocketThread extends Thread {
 
@@ -26,8 +28,17 @@ public class SocketThread extends Thread {
             out = new DataOutputStream(socket.getOutputStream());
             listener.onSocketReady(this, socket);
             while (!isInterrupted()) {
-                String msg = in.readUTF();
-                listener.onReceiveString(this, socket, msg);
+                int length = in.read();
+                if(length > 0) {
+                    byte[] bytemsg = new byte[length];
+                    for (int i = 0; i < length; i++) {
+                        bytemsg[i] = in.readByte();
+                    }
+                    String msg = new String(bytemsg);
+                    listener.onReceiveString(this, socket, msg);
+                } else{
+                    System.out.println(length);
+                }
             }
         } catch (IOException e) {
             listener.onSocketException(this, e);
@@ -39,7 +50,12 @@ public class SocketThread extends Thread {
 
     public synchronized boolean sendMessage(String msg) {
         try {
-            out.writeUTF(msg);
+            String encodedString = Base64.getEncoder().encodeToString(msg.getBytes());
+            byte[] bytes = Base64.getDecoder().decode(encodedString);
+            out.write(bytes.length);
+            for(int i =0; i < bytes.length; i++) {
+                out.writeByte(bytes[i]);
+            }
             out.flush();
             return true;
         } catch (IOException e) {

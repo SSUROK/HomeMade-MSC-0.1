@@ -34,6 +34,7 @@ public class AdminGUI extends JFrame implements ActionListener, Thread.UncaughtE
     private final JTextField ramspace_spec = new JTextField();
     private final JTextField drives_spec = new JTextField();
 
+    private final JButton btnDrives = new JButton("Drives");
     private final JButton btnConnect = new JButton("Connect");
     private final JButton btnDisconnect = new JButton("Disconnect");
     private final JTextField tfIPAddress = new JTextField("127.0.0.1");
@@ -63,7 +64,7 @@ public class AdminGUI extends JFrame implements ActionListener, Thread.UncaughtE
         setSize(WIDTH, HEIGHT);
         setTitle("Admin window");
 
-
+        btnDrives.addActionListener(this);
         btnDisconnect.addActionListener(this);
         btnConnect.addActionListener(this);
         panelMain.add(panelNames);
@@ -82,8 +83,8 @@ public class AdminGUI extends JFrame implements ActionListener, Thread.UncaughtE
         ip.setDisabledTextColor(Color.BLACK);
         ramspace.setEnabled(false);
         ramspace.setDisabledTextColor(Color.BLACK);
-        drives.setEnabled(false);
-        drives.setDisabledTextColor(Color.BLACK);
+//        drives.setEnabled(false);
+//        drives.setDisabledTextColor(Color.BLACK);
 
         pc_name_spec.setEnabled(false);
         pc_name_spec.setDisabledTextColor(Color.BLACK);
@@ -93,20 +94,21 @@ public class AdminGUI extends JFrame implements ActionListener, Thread.UncaughtE
         ip_spec.setDisabledTextColor(Color.BLACK);
         ramspace_spec.setEnabled(false);
         ramspace_spec.setDisabledTextColor(Color.BLACK);
-        drives_spec.setEnabled(false);
-        drives_spec.setDisabledTextColor(Color.BLACK);
+//        drives_spec.setEnabled(false);
+//        drives_spec.setDisabledTextColor(Color.BLACK);
 
         panelNames.add(pc_name);
         panelNames.add(os);
         panelNames.add(ip);
         panelNames.add(ramspace);
-        panelNames.add(drives);
+//        panelNames.add(drives);
 
         panelSpecs.add(pc_name_spec);
         panelSpecs.add(os_spec);
         panelSpecs.add(ip_spec);
         panelSpecs.add(ramspace_spec);
-        panelSpecs.add(drives_spec);
+//        panelSpecs.add(drives_spec);
+        panelSpecs.add(btnDrives);
 
         add(panelButtons, BorderLayout.NORTH);
         add(panelMain, BorderLayout.CENTER);
@@ -122,6 +124,7 @@ public class AdminGUI extends JFrame implements ActionListener, Thread.UncaughtE
             socketThread = new SocketThread(this, "Admin", socket);
             active = true;
             System.out.println("connection ok");
+            change();
         } catch (IOException exception) {
             showException(Thread.currentThread(), exception);
         }
@@ -133,6 +136,7 @@ public class AdminGUI extends JFrame implements ActionListener, Thread.UncaughtE
         pcList.removeAll();
         pcList.setVisible(false);
         redo.interrupt();
+        change();
     }
 
     private void change(){
@@ -151,10 +155,10 @@ public class AdminGUI extends JFrame implements ActionListener, Thread.UncaughtE
         Object src = e.getSource();
         if (src == btnConnect) {
             connect();
-            change();
         } else if (src == btnDisconnect) {
             disconnect();
-            change();
+        } else if (src == btnDrives) {
+            showDrives();
         } else {
             throw new RuntimeException("Unknown source: " + src);
         }
@@ -174,12 +178,13 @@ public class AdminGUI extends JFrame implements ActionListener, Thread.UncaughtE
 
     @Override
     public void onSocketStop(SocketThread thread) {
-
+        disconnect();
     }
 
     @Override
     public void onSocketReady(SocketThread thread, Socket socket) {
         String msg = "adminauthtorize";
+//        String msg = "adminauthtorizc=";
         socketThread.sendMessage(msg);
     }
 
@@ -196,9 +201,16 @@ public class AdminGUI extends JFrame implements ActionListener, Thread.UncaughtE
             pc_specs = msg.split(";");
             panelSpecs.setVisible(false);
             fillSpecs();
+        } else if (msg.contains("drives")){
+            msg = msg.substring(7);
+            redo.discAnalyzer(msg);
         }else{
             System.out.println("Unknown source: " + msg);
         }
+
+    }
+
+    private void showDrives(){
 
     }
 
@@ -225,12 +237,19 @@ public class AdminGUI extends JFrame implements ActionListener, Thread.UncaughtE
     }
 
     private void fillSpecs(){
+        for(String spec:pc_specs) {
+            System.out.println(spec);
+        }
         pc_name_spec.setText(pc_specs[0]);
         os_spec.setText(pc_specs[1]);
         ip_spec.setText(pc_specs[2]);
         ramspace_spec.setText(pc_specs[3]);
-        drives_spec.setText(pc_specs[4]);
+
         panelSpecs.setVisible(true);
+    }
+
+    private void checkCritical(){
+
     }
 
     @Override

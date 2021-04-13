@@ -5,13 +5,20 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
+import java.awt.event.WindowStateListener;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
+import javax.swing.UIManager;
 
 public class TestGUI extends JFrame implements Thread.UncaughtExceptionHandler, ActionListener, SocketThreadListener {
 
     private final JPanel panel = new JPanel(new GridLayout(1, 2));
-    private final JPanel connectPannnel  = new JPanel(new GridLayout(1, 3));
+    private final JPanel connectPannnel = new JPanel(new GridLayout(1, 3));
 
     private final JButton threadStart = new JButton("start");
     private final JButton threadEnd = new JButton("end");
@@ -23,7 +30,63 @@ public class TestGUI extends JFrame implements Thread.UncaughtExceptionHandler, 
 
     private SocketThread socketThread;
 
-    private TestGUI(){
+    private TrayIcon trayIcon;
+    private SystemTray tray;
+
+    private TestGUI() {
+
+        System.out.println("creating instance");
+        try {
+            System.out.println("setting look and feel");
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+        } catch (Exception e) {
+            System.out.println("Unable to set LookAndFeel");
+        }
+        if (SystemTray.isSupported()) {
+            System.out.println("system tray supported");
+            tray = SystemTray.getSystemTray();
+
+            Image image = Toolkit.getDefaultToolkit().getImage(TestGUI.class.getResource("library/6wheel.png"));
+            ActionListener exitListener = new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    System.out.println("Exiting....");
+                    System.exit(0);
+                }
+            };
+            PopupMenu popup = new PopupMenu();
+            MenuItem defaultItem = new MenuItem("Exit");
+            defaultItem.addActionListener(exitListener);
+            popup.add(defaultItem);
+            defaultItem = new MenuItem("Open");
+            defaultItem.addActionListener(new ActionListener() {
+                public void actionPerformed(ActionEvent e) {
+                    setExtendedState(JFrame.NORMAL);
+                    setVisible(true);
+                    tray.remove(trayIcon);
+                }
+            });
+            popup.add(defaultItem);
+            trayIcon = new TrayIcon(image, "SystemTray Demo", popup);
+            trayIcon.setImageAutoSize(true);
+        } else {
+            System.out.println("system tray not supported");
+        }
+        addWindowStateListener(new WindowStateListener() {
+            @Override
+            public void windowStateChanged(WindowEvent e) {
+                if (e.getNewState() == ICONIFIED) {
+                    try {
+                        tray.add(trayIcon);
+                        setVisible(false);
+                        System.out.println("added to SystemTray");
+                    } catch (AWTException ex) {
+                        System.out.println("unable to add to tray");
+                    }
+                }
+            }
+        });
+        setIconImage(Toolkit.getDefaultToolkit().getImage(TestGUI.class.getResource("library/6wheel.png")));
+
         Thread.setDefaultUncaughtExceptionHandler(this);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -110,17 +173,29 @@ public class TestGUI extends JFrame implements Thread.UncaughtExceptionHandler, 
 
     @Override
     public void onSocketStop(SocketThread thread) {
-
+        try {
+            InetAddress ip = InetAddress.getLocalHost();
+            thread.sendMessage(("close " + ip));
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void onSocketReady(SocketThread thread, Socket socket) {
-
+        try {
+            InetAddress ip = InetAddress.getLocalHost();
+            thread.sendMessage(("check " + ip));
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public void onReceiveString(SocketThread thread, Socket socket, String msg) {
-
+        if (msg.equals("exist")) {
+            System.exit(0);
+        }
     }
 
     @Override

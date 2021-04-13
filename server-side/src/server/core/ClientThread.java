@@ -5,6 +5,7 @@ import net.core.SocketThreadListener;
 import ru.sur.msc.common.Common;
 
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 
 public class ClientThread extends SocketThread {
 

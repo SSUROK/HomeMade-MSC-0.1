@@ -1,9 +1,10 @@
 import net.core.SocketThread;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
 
 public class ClientDeamon extends Thread {
 
@@ -39,9 +40,9 @@ public class ClientDeamon extends Thread {
         roots = File.listRoots();
 
         for (File root: roots) {
-            long freeSpace = new File(root.getAbsolutePath()).getFreeSpace(); //Here I am checking my d drive free space.
+            long freeSpace = new File(root.getAbsolutePath()).getFreeSpace(); //Here I am checking my drive free space.
             int exitType = (int) Math.pow(1024, 3);
-            msg = msg + root.getAbsolutePath() + "=" + freeSpace / exitType + "  ";
+            msg = msg + root.getAbsolutePath() + "=" + freeSpace / exitType + " ";
         }
         msg = msg + ";";
     }
@@ -52,14 +53,33 @@ public class ClientDeamon extends Thread {
 
     private void netChecker(){
         InetAddress ip;
+        String ip_send;
         String hostname;
+        Socket socket = new Socket();
         try {
             ip = InetAddress.getLocalHost();
             hostname = ip.getHostName();
-            msg = msg + hostname + ";" + ip + ";";
-        } catch (UnknownHostException e) {
+            socket.connect(new InetSocketAddress("google.com", 80));
+            ip_send = hostname + socket.getLocalAddress();
+            msg = msg + hostname + ";" + ip_send + ";";
+        } catch (IOException e) {
             e.printStackTrace();
         }
+        System.out.println(socket.getLocalAddress());
+//        try(final DatagramSocket socket = new DatagramSocket()){
+//            socket.connect(InetAddress.getByName("8.8.8.8"), 10002);
+//            ip = socket.getLocalAddress().getHostAddress();
+//            System.out.println(ip);
+//        } catch (SocketException | UnknownHostException e) {
+//            e.printStackTrace();
+//        }
+//        try {
+//            ip = InetAddress.getLocalHost();
+//            hostname = ip.getHostName();
+//            msg = msg + hostname + ";" + ip + ";";
+//        } catch (UnknownHostException e) {
+//            e.printStackTrace();
+//        }
     }
 
     private void ramChecker(){

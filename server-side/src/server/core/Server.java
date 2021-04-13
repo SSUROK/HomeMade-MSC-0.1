@@ -11,7 +11,7 @@ import java.net.Socket;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.Vector;
+import java.util.*;
 import java.util.logging.*;
 
 public class Server implements ServerSocketThreadListener, SocketThreadListener {
@@ -112,6 +112,13 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
     public void onSocketStop(SocketThread thread) {
         logger.log(Level.SEVERE, "Client thread stopped");
         putLog("Client thread stopped");
+        System.out.println(thread.getName());
+        try {
+            System.out.println("setting offline");
+            db.setOffline(thread.getName());
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
         clients.remove(thread);
     }
 
@@ -128,18 +135,63 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
         if(msg.equals("adminauthtorize")){
             client.setName("Admin");
             client.sendMessage("successauth");
+        } else if(msg.contains("getDrives")) {
+            getDrives(client);
         } else if(msg.equals("getPcs")){
             try {
                 client.sendMessage(db.getPcsNames());
             } catch (SQLException e) {
                 e.printStackTrace();
             }
-        }else if(client.getName().equals("Admin")){
+        }else if(client.getName().equals("Admin")) {
             sendToAdmin(client, msg);
+        } else if(msg.contains("check")) {
+            msg = msg.substring(6);
+            checkExistence(msg, client);
         } else {
-            System.out.println(msg);
             dbSave(client, msg);
         }
+    }
+
+    private void getDrives(ClientThread client){
+//        String overloadedDrives = "drives";
+        List<String> overloadedDrives = new ArrayList<>();
+        try {
+            Map<String, Map<String, List<Integer>>> drives = db.getDrives();
+//            Map<String, Map<String, List<Integer>>> constructor = new HashMap<>();
+//            String[] d = drives.toString().split("},");
+//            System.out.println(Arrays.toString(d));
+//            for(String dr :d) {
+//                String[] d1 = dr.split(("=\\{"));
+//                for(int i = 0; i< d1.length; i++){
+//                    if(i%2==0){
+//                        constructor.put(d1[i], null);
+//                    }
+//                }
+//                for(String d1r : d1){
+//                    String[] d2 = d1r.split("],");
+//                    for(String d2r : d2) {
+//                        String[] d3 = d2r.split("=\\[");
+//                        for(String d3r : d3){
+//                            String[] d4 = d3r.split(", ");
+//                            System.out.println(Arrays.toString(d4));
+//                        }
+//                    }
+//                }
+//            }
+            drives.forEach((k, v) -> {
+                v.forEach((name, value) -> {
+                    if(value.get(0) < value.get(1)){
+                        overloadedDrives.add(k);
+                    }
+                });
+                System.out.println();
+            });
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+        String msg = "drives" + overloadedDrives;
+        client.sendMessage(msg);
     }
 
     public void dbConnect(String DB_URL, String USER, String PASS){
@@ -160,6 +212,7 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
     private void dbSave(ClientThread client, String msg){
         String[] pc_specs =  msg.split(";");
         try {
+            client.setName(pc_specs[1]);
             db.dbSave(pc_specs);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -171,6 +224,18 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
             client.sendMessage(db.dbGet(msg));
         } catch (SQLException e) {
             e.printStackTrace();
+        }
+    }
+
+    private void checkExistence(String ip, ClientThread client){
+        try {
+            if(db.check(ip)){
+                client.sendMessage("exist");
+            } else {
+                db.setOnline(ip);
+            }
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
         }
     }
 
