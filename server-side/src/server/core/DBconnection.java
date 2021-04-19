@@ -73,7 +73,7 @@ public class DBconnection {
             String query = String.format("SELECT ip FROM connectedpcs WHERE ip='%s'", PC_SPECS[1]);
             resultSet = statement.executeQuery(query);
             if (resultSet.next()) {
-                query = String.format("UPDATE connectedpcs SET IP='%s', OS='%s', RAMSPACE='%s', WHERE pc_name='%s'", PC_SPECS[1], PC_SPECS[2], PC_SPECS[3], PC_SPECS[0]);
+                query = String.format("UPDATE connectedpcs SET IP='%s', OS='%s', RAMSPACE='%s' WHERE pc_name='%s'", PC_SPECS[1], PC_SPECS[2], PC_SPECS[3], PC_SPECS[0]);
                 statement.executeUpdate(query);
                 System.out.println("PC was successfully updated");
 
@@ -156,7 +156,7 @@ public class DBconnection {
         return msg;
     }
 
-    public String getPcsNames() throws SQLException {
+    public String getPcsNames(){
         String msg = "pcs_names;";
         try {
             ResultSet resultSet;
@@ -185,13 +185,18 @@ public class DBconnection {
     }
 
     public void setOnline(String ip) throws SQLException {
-        System.out.println("setting online" + ip);
+        System.out.println("setting online " + ip);
         String query = String.format("UPDATE connectedpcs SET online='true' WHERE ip='%s'", ip);
         statement.executeUpdate(query);
     }
 
     public void setOffline(String ip) throws SQLException {
         String query = String.format("UPDATE connectedpcs SET online='false' WHERE ip='%s'", ip);
+        statement.executeUpdate(query);
+    }
+
+    public void setLimit(String[] msg) throws SQLException{
+        String query = String.format("UPDATE drives SET critical_space='%s' WHERE pc_name='%s' AND name='%s'", msg[2], msg[0], msg[1]);
         statement.executeUpdate(query);
     }
 }

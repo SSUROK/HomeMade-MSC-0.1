@@ -6,6 +6,7 @@ import ru.sur.msc.common.Common;
 
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 public class ClientThread extends SocketThread {
 
@@ -32,16 +33,22 @@ public class ClientThread extends SocketThread {
         isAuthorized = true;
         this.nickname = nickname;
         ClientThread.setNickname(nickname);
-        sendMessage(Common.getAuthAccept(nickname));
+        String encodedString = Base64.getEncoder().encodeToString(Common.getAuthAccept(nickname).getBytes());
+        byte[] bytes = Base64.getDecoder().decode(encodedString);
+        sendMessage(bytes);
     }
 
     void authFail() {
-        sendMessage(Common.getAuthDenied());
+        String encodedString = Base64.getEncoder().encodeToString(Common.getAuthDenied().getBytes());
+        byte[] bytes = Base64.getDecoder().decode(encodedString);
+        sendMessage(bytes);
         close();
     }
 
     void msgFormatError(String msg) {
-        sendMessage(Common.getMsgFormatError(msg));
+        String encodedString = Base64.getEncoder().encodeToString(Common.getMsgFormatError(msg).getBytes());
+        byte[] bytes = Base64.getDecoder().decode(encodedString);
+        sendMessage(bytes);
         close();
     }
 

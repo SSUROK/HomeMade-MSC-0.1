@@ -4,25 +4,30 @@ import gui.AdminGUI;
 import net.core.SocketThread;
 
 import javax.swing.*;
-import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
-public class Redo extends Thread implements ActionListener {
+public class Redo extends Thread {
 
-    private final JPanel pcList;
-    private static JButton[] computers;
+    private static DefaultListModel<String> dlm = new DefaultListModel<>();
     private static String[] pcs_names;
     private final AdminGUI gui;
     private final SocketThread socketThread;
-    private static String chsnPC;
+    private static Integer askTime;
 
-    public Redo(JPanel pcList, String name, SocketThread socketThread, AdminGUI gui) {
+    public Redo(DefaultListModel<String> dlm, String name, SocketThread socketThread, AdminGUI gui) {
         super(name);
-        this.pcList = pcList;
+        this.dlm = dlm;
         this.socketThread = socketThread;
         this.gui = gui;
+    }
+
+    public void setAskTime(int time){
+        askTime = time;
     }
 
     @Override
@@ -32,7 +37,7 @@ public class Redo extends Thread implements ActionListener {
                 pcListUpdater();
                 getdrives();
 
-                Thread.sleep(10000); //1000 - 1 сек
+                Thread.sleep(askTime); //1000 - 1 сек
             } catch (InterruptedException ex) {
                 interrupt();
                 System.out.println("Thread has been interrupted");
@@ -42,49 +47,32 @@ public class Redo extends Thread implements ActionListener {
 
     public void getdrives(){
         String msg = "getDrives";
-        socketThread.sendMessage(msg);
-        System.out.println("get drives");
+        socketThread.sendMessage(msg.getBytes(StandardCharsets.UTF_8));
     }
 
-    public void discAnalyzer(String msg){
-        msg = msg.replace("[", "");
-        String[] overloadedDiscs = msg.split("]");
-        for(String pc : overloadedDiscs) {
-            for(JButton comp : computers){
-                if (comp.getText().equals(pc)){
-                    comp.setBackground(Color.RED);
-                    comp.setOpaque(true);
-                    comp.setBorderPainted(false);
+    public void discAnalyzer(Map<String, Map<String, List<Integer>>> discList){
+        List<String> overloadedDrives = new ArrayList<>();
+        discList.forEach((k, v) -> {
+            v.forEach((name, value) -> {
+                if(value.get(0) < value.get(1)){
+                    overloadedDrives.add(k);
                 }
-            }
-        }
+            });
+        });
+        gui.setDefectivePCs(overloadedDrives);
     }
 
     private void pcListUpdater(){
         pcs_names = gui.getPcs_names();
-        computers = new JButton[pcs_names.length];
-        pcList.removeAll();
-        for (int i = 0; i < pcs_names.length; i++) {
-            computers[i] = new JButton(pcs_names[i]);
-            computers[i].addActionListener(this);
-            pcList.add(computers[i]);
+        dlm.removeAllElements();
+        for(String name : pcs_names){
+            dlm.add(0, name);
         }
-        gui.setPcList(pcList);
-        if (chsnPC != null) {
-            socketThread.sendMessage(chsnPC);
-        }
-    }
+        gui.setPcList(dlm);
 
-
-
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        Object src = e.getSource();
-        for (JButton button : computers) {
-            if (src == button) {
-                chsnPC = button.getText();
-                socketThread.sendMessage(button.getText());
-            }
+        String chsnPC = gui.getChsnPC();
+        if(chsnPC != null){
+            socketThread.sendMessage(chsnPC.getBytes(StandardCharsets.UTF_8));
         }
     }
 }

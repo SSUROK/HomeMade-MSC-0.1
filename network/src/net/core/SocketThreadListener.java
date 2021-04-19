@@ -8,7 +8,7 @@ public interface SocketThreadListener {
     void onSocketStop(SocketThread thread);
 
     void onSocketReady(SocketThread thread, Socket socket);
-    void onReceiveString(SocketThread thread, Socket socket, String msg);
+    void onReceiveString(SocketThread thread, Socket socket, byte[] msg);
 
     void onSocketException(SocketThread thread, Exception exception);
 }

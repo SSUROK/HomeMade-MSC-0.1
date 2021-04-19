@@ -28,16 +28,16 @@ public class SocketThread extends Thread {
             out = new DataOutputStream(socket.getOutputStream());
             listener.onSocketReady(this, socket);
             while (!isInterrupted()) {
-                int length = in.read();
-                if(length > 0) {
-                    byte[] bytemsg = new byte[length];
+                long length = in.readLong();
+                if (length > 0) {
+                    byte[] bytemsg = new byte[(int)length];
                     for (int i = 0; i < length; i++) {
                         bytemsg[i] = in.readByte();
                     }
-                    String msg = new String(bytemsg);
-                    listener.onReceiveString(this, socket, msg);
-                } else{
-                    System.out.println(length);
+                    byte[] decodedMSG = Base64.getDecoder().decode(bytemsg);
+                    listener.onReceiveString(this, socket, decodedMSG);
+                } else {
+                    interrupt();
                 }
             }
         } catch (IOException e) {
@@ -48,13 +48,13 @@ public class SocketThread extends Thread {
         }
     }
 
-    public synchronized boolean sendMessage(String msg) {
+    public synchronized boolean sendMessage(byte[] bytes) {
         try {
-            String encodedString = Base64.getEncoder().encodeToString(msg.getBytes());
-            byte[] bytes = Base64.getDecoder().decode(encodedString);
-            out.write(bytes.length);
-            for(int i =0; i < bytes.length; i++) {
-                out.writeByte(bytes[i]);
+            byte[] encodedString = Base64.getEncoder().encode(bytes);
+            long len = encodedString.length;
+            out.writeLong(len);
+            for(int i =0; i < len; i++) {
+                out.writeByte(encodedString[i]);
             }
             out.flush();
             return true;

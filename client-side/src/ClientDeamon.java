@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 
 public class ClientDeamon extends Thread {
 
@@ -27,7 +28,7 @@ public class ClientDeamon extends Thread {
                 osChecker();
                 ramChecker();
                 diskChecker();
-                socketThread.sendMessage(msg);
+                socketThread.sendMessage(msg.getBytes());
                 Thread.sleep(10000); //1000 - 1 сек
             } catch (InterruptedException ex) {
                 interrupt();
@@ -51,6 +52,15 @@ public class ClientDeamon extends Thread {
          msg = msg + System.getProperty("os.name") + " " + System.getProperty("os.version") + ";";
     }
 
+    public void pingHost(String host) {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(host, 80), 2000);
+            socketThread.sendMessage("true".getBytes(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            socketThread.sendMessage("false".getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
     private void netChecker(){
         InetAddress ip;
         String ip_send;
@@ -60,12 +70,12 @@ public class ClientDeamon extends Thread {
             ip = InetAddress.getLocalHost();
             hostname = ip.getHostName();
             socket.connect(new InetSocketAddress("google.com", 80));
-            ip_send = hostname + socket.getLocalAddress();
+            ip_send = socket.getLocalAddress().toString().substring(1);
+            System.out.println(ip_send);
             msg = msg + hostname + ";" + ip_send + ";";
         } catch (IOException e) {
             e.printStackTrace();
         }
-        System.out.println(socket.getLocalAddress());
 //        try(final DatagramSocket socket = new DatagramSocket()){
 //            socket.connect(InetAddress.getByName("8.8.8.8"), 10002);
 //            ip = socket.getLocalAddress().getHostAddress();

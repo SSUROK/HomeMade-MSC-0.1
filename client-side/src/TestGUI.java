@@ -9,10 +9,8 @@ import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
 import javax.swing.UIManager;
 
 public class TestGUI extends JFrame implements Thread.UncaughtExceptionHandler, ActionListener, SocketThreadListener {
@@ -89,8 +87,8 @@ public class TestGUI extends JFrame implements Thread.UncaughtExceptionHandler, 
 
         Thread.setDefaultUncaughtExceptionHandler(this);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
         setSize(300, 100);
+        setLocationRelativeTo(null);
         setTitle("Client window");
 
         btnconnect.addActionListener(this);
@@ -175,7 +173,7 @@ public class TestGUI extends JFrame implements Thread.UncaughtExceptionHandler, 
     public void onSocketStop(SocketThread thread) {
         try {
             InetAddress ip = InetAddress.getLocalHost();
-            thread.sendMessage(("close " + ip));
+            thread.sendMessage(("close " + ip).getBytes());
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
@@ -185,16 +183,22 @@ public class TestGUI extends JFrame implements Thread.UncaughtExceptionHandler, 
     public void onSocketReady(SocketThread thread, Socket socket) {
         try {
             InetAddress ip = InetAddress.getLocalHost();
-            thread.sendMessage(("check " + ip));
+            thread.sendMessage(("check " + ip).getBytes());
         } catch (UnknownHostException e) {
             e.printStackTrace();
         }
     }
 
     @Override
-    public void onReceiveString(SocketThread thread, Socket socket, String msg) {
+    public void onReceiveString(SocketThread thread, Socket socket, byte[] bytemsg) {
+        String msg = new String(bytemsg);
         if (msg.equals("exist")) {
             System.exit(0);
+        } else if(msg.contains("ping")){
+            msg = msg.substring(4);
+            clD.pingHost(msg);
+        } else {
+            throw new RuntimeException("Unknown source: " + msg);
         }
     }
 

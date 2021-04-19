@@ -10,8 +10,6 @@ import java.awt.event.ActionListener;
 
 public class ServerGUI extends JFrame implements ActionListener, Thread.UncaughtExceptionHandler, ServerListener {
 
-    private static final int POS_X = 800;
-    private static final int POS_Y = 200;
     private static final int WIDTH = 600;
     private static final int HEIGHT = 300;
 
@@ -43,7 +41,8 @@ public class ServerGUI extends JFrame implements ActionListener, Thread.Uncaught
     private ServerGUI() {
         Thread.setDefaultUncaughtExceptionHandler(this);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setBounds(POS_X, POS_Y, WIDTH, HEIGHT);
+        setSize(WIDTH, HEIGHT);
+        setLocationRelativeTo(null);
         setResizable(false);
         setTitle("Chat server");
         log.setEditable(false);

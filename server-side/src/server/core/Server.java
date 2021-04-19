@@ -4,10 +4,12 @@ import net.core.ServerSocketThread;
 import net.core.ServerSocketThreadListener;
 import net.core.SocketThread;
 import net.core.SocketThreadListener;
+import ru.sur.msc.common.Common;
 
-import java.io.IOException;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -112,7 +114,7 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
     public void onSocketStop(SocketThread thread) {
         logger.log(Level.SEVERE, "Client thread stopped");
         putLog("Client thread stopped");
-        System.out.println(thread.getName());
+//        System.out.println(thread.getName());
         try {
             System.out.println("setting offline");
             db.setOffline(thread.getName());
@@ -130,68 +132,71 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
     }
 
     @Override
-    public void onReceiveString(SocketThread thread, Socket socket, String msg) {
+    public void onReceiveString(SocketThread thread, Socket socket, byte[] bytemsg) {
+        String msg = new String(bytemsg);
         ClientThread client = (ClientThread) thread;
         if(msg.equals("adminauthtorize")){
             client.setName("Admin");
-            client.sendMessage("successauth");
+            client.sendMessage("successauth".getBytes());
+        } else if(msg.contains("getPcs")){
+            client.sendMessage(db.getPcsNames().getBytes());
+        }else if(msg.contains("setLimit")){
+            msg = msg.substring(8);
+            setLimit(msg);
         } else if(msg.contains("getDrives")) {
             getDrives(client);
-        } else if(msg.equals("getPcs")){
-            try {
-                client.sendMessage(db.getPcsNames());
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
-        }else if(client.getName().equals("Admin")) {
-            sendToAdmin(client, msg);
+        } else if(msg.contains("checkHost")) {
+            msg = msg.substring(9);
+            checkHost(msg);
+        } else if(msg.equals("true") || msg.equals("false")){
+            String send = msg;
+            clients.forEach(v ->{
+                if(v.toString().contains("Admin")){
+                    v.sendMessage(send.getBytes(StandardCharsets.UTF_8));
+                }
+            });
         } else if(msg.contains("check")) {
             msg = msg.substring(6);
             checkExistence(msg, client);
+        } else if(client.getName().equals("Admin")) {
+            sendToAdmin(client, msg);
         } else {
+            System.out.println(msg);
             dbSave(client, msg);
         }
     }
 
-    private void getDrives(ClientThread client){
-//        String overloadedDrives = "drives";
-        List<String> overloadedDrives = new ArrayList<>();
+    private void checkHost(String msg){
+        String[] temp = msg.split(";");
+        clients.forEach(v -> {
+            if(v.toString().contains(temp[0])){
+                v.sendMessage(("ping"+temp[1]).getBytes(StandardCharsets.UTF_8));
+            }
+        });
+    }
+
+    private void setLimit(String msg){
+        String[] m = msg.split(";");
         try {
-            Map<String, Map<String, List<Integer>>> drives = db.getDrives();
-//            Map<String, Map<String, List<Integer>>> constructor = new HashMap<>();
-//            String[] d = drives.toString().split("},");
-//            System.out.println(Arrays.toString(d));
-//            for(String dr :d) {
-//                String[] d1 = dr.split(("=\\{"));
-//                for(int i = 0; i< d1.length; i++){
-//                    if(i%2==0){
-//                        constructor.put(d1[i], null);
-//                    }
-//                }
-//                for(String d1r : d1){
-//                    String[] d2 = d1r.split("],");
-//                    for(String d2r : d2) {
-//                        String[] d3 = d2r.split("=\\[");
-//                        for(String d3r : d3){
-//                            String[] d4 = d3r.split(", ");
-//                            System.out.println(Arrays.toString(d4));
-//                        }
-//                    }
-//                }
-//            }
-            drives.forEach((k, v) -> {
-                v.forEach((name, value) -> {
-                    if(value.get(0) < value.get(1)){
-                        overloadedDrives.add(k);
-                    }
-                });
-                System.out.println();
-            });
+            db.setLimit(m);
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
-        String msg = "drives" + overloadedDrives;
-        client.sendMessage(msg);
+    }
+
+    private void getDrives(ClientThread client){
+        try {
+            Map<String, Map<String, List<Integer>>> drives = db.getDrives();
+
+            // Convert Map to byte array
+            ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
+            ObjectOutputStream out = new ObjectOutputStream(byteOut);
+            out.writeObject(drives);
+
+            client.sendMessage(byteOut.toByteArray());
+        } catch (SQLException | IOException throwables) {
+            throwables.printStackTrace();
+        }
     }
 
     public void dbConnect(String DB_URL, String USER, String PASS){
@@ -221,7 +226,7 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
 
     private void sendToAdmin(ClientThread client, String msg){
         try {
-            client.sendMessage(db.dbGet(msg));
+            client.sendMessage(db.dbGet(msg).getBytes());
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -230,7 +235,7 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
     private void checkExistence(String ip, ClientThread client){
         try {
             if(db.check(ip)){
-                client.sendMessage("exist");
+                client.sendMessage("exist".getBytes());
             } else {
                 db.setOnline(ip);
             }
