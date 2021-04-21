@@ -147,6 +147,7 @@ public class DBconnection {
                 msg = msg + resultSet.getString(3) + ";";
                 msg = msg + resultSet.getString(4) + ";";
                 msg = msg + resultSet.getString(5) + ";";
+                msg = msg + resultSet.getString(6) + ";";
             }
             resultSet.close();
         } catch (SQLException e) {
@@ -195,8 +196,17 @@ public class DBconnection {
         statement.executeUpdate(query);
     }
 
-    public void setLimit(String[] msg) throws SQLException{
-        String query = String.format("UPDATE drives SET critical_space='%s' WHERE pc_name='%s' AND name='%s'", msg[2], msg[0], msg[1]);
-        statement.executeUpdate(query);
+    public void setLimit(String msg) throws SQLException {
+        if (msg.contains("ram")) {
+            msg = msg.substring(3);
+            String[] m = msg.split(";");
+            String query = String.format("UPDATE connectedpcs SET ramcritical='%s' WHERE pc_name='%s'", m[1], m[0]);
+            statement.executeUpdate(query);
+        } else{
+            String[] m = msg.split(";");
+            String query = String.format("UPDATE drives SET critical_space='%s' WHERE pc_name='%s' AND name='%s'", m[2], m[0], m[1]);
+            statement.executeUpdate(query);
+        }
+
     }
 }

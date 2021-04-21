@@ -53,6 +53,7 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
     private final JTextField ip = new JTextField("PC IP");
     private final JTextField ramspace = new JTextField("PC ram space");
     private final JTextField url = new JTextField();
+    private final JTextField ramCritical = new JTextField();
 
     private final JButton btnCheckHost = new JButton("Check");
     private final JButton btnConnect = new JButton("Connect");
@@ -104,6 +105,7 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
         btnCheckHost.addActionListener(this);
         btnDisconnect.addActionListener(this);
         btnConnect.addActionListener(this);
+        ramCritical.addActionListener(this);
         drivesMenu.setEnabled(false);
 
         menuBar.add(settings());
@@ -247,12 +249,13 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
         } else if (src == criticalSize) {
             setCritical();
         } else if (src == btnCheckHost) {
-            if(!chsnPC.equals("") && !url.getText().equals("")) {
-                System.out.println(pc_specs.get(2));
+            if (!chsnPC.equals("") && !url.getText().equals("")) {
                 String ip = pc_specs.get(2);
                 socketThread.sendMessage(
-                        ("checkHost"+ip+";"+url.getText()).getBytes(StandardCharsets.UTF_8));
+                        ("checkHost" + ip + ";" + url.getText()).getBytes(StandardCharsets.UTF_8));
             }
+        } else if(src == ramCritical){
+            setCriticalRam();
         } else {
             throw new RuntimeException("Unknown source: " + src);
         }
@@ -361,6 +364,12 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
                         .getBytes(StandardCharsets.UTF_8));
     }
 
+    private void setCriticalRam(){
+        socketThread.sendMessage(
+                ("setLimitram" + chsnPC + ";" + ramCritical.getText())
+                        .getBytes(StandardCharsets.UTF_8));
+    }
+
     public void setDefectivePCs(List<String> defectivePCs){
         this.defectivePCs.clear();
         defectivePCs.forEach(v -> this.defectivePCs.add(v));
@@ -391,10 +400,25 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
     private void fillSpecs(){
         panelSpecs.removeAll();
         pc_specs.forEach(spec ->{
-        JTextField temp = new JTextField(spec);
-        temp.setEnabled(false);
-        temp.setDisabledTextColor(Color.BLACK);
-        panelSpecs.add(temp);
+            JTextField temp = new JTextField(spec);
+            temp.setEnabled(false);
+            temp.setDisabledTextColor(Color.BLACK);
+            JPanel panel = new JPanel(new GridLayout(1, 2));
+            if(spec.equals(pc_specs.get(3))){
+                panel.add(temp);
+                panel.add(ramCritical);
+                panelSpecs.add(panel);
+            }else if(spec.equals(pc_specs.get(4))){
+                ramCritical.setText(spec);
+                if(Integer.parseInt(spec)>Integer.parseInt(pc_specs.get(3))){
+                    ramspace.setBackground(Color.red);
+                    defectivePCs.add(chsnPC);
+                }else if (defectivePCs.contains(chsnPC)){
+                    ramspace.setBackground(Color.white);
+                    defectivePCs.remove(chsnPC);
+                }
+            }else
+                panelSpecs.add(temp);
         });
         revalidate();
     }
@@ -432,7 +456,6 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
             int selected = ((JList<?>) src).getSelectedIndex();
             if (selected != -1) {
                 chsnPC = dlm.get(selected);
-                System.out.println(chsnPC);
                 drivesMenu.setEnabled(true);
                 socketThread.sendMessage(dlm.get(selected).getBytes(StandardCharsets.UTF_8));
             }
@@ -443,7 +466,6 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
                 label.setText("Available Space: " + availableSpace + "GB");
                 criticalSize.setText(discList.get(chsnPC).get(drives.get(selected)).get(1).toString());
                 repaint();
-                System.out.println(drives.get(selected));
             }
         } else {
             throw new RuntimeException("Unknown source: " + src);

@@ -1,3 +1,6 @@
+package gui;
+
+import core.ClientDeamon;
 import net.core.SocketThread;
 import net.core.SocketThreadListener;
 
@@ -13,7 +16,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import javax.swing.UIManager;
 
-public class TestGUI extends JFrame implements Thread.UncaughtExceptionHandler, ActionListener, SocketThreadListener {
+public class ClientGUI extends JFrame implements Thread.UncaughtExceptionHandler, ActionListener, SocketThreadListener {
 
     private final JPanel panel = new JPanel(new GridLayout(1, 2));
     private final JPanel connectPannnel = new JPanel(new GridLayout(1, 3));
@@ -31,7 +34,7 @@ public class TestGUI extends JFrame implements Thread.UncaughtExceptionHandler, 
     private TrayIcon trayIcon;
     private SystemTray tray;
 
-    private TestGUI() {
+    private ClientGUI() {
 
         System.out.println("creating instance");
         try {
@@ -44,7 +47,7 @@ public class TestGUI extends JFrame implements Thread.UncaughtExceptionHandler, 
             System.out.println("system tray supported");
             tray = SystemTray.getSystemTray();
 
-            Image image = Toolkit.getDefaultToolkit().getImage(TestGUI.class.getResource("library/6wheel.png"));
+            Image image = Toolkit.getDefaultToolkit().getImage(ClientGUI.class.getResource("library/6wheel.png"));
             ActionListener exitListener = new ActionListener() {
                 public void actionPerformed(ActionEvent e) {
                     System.out.println("Exiting....");
@@ -83,7 +86,7 @@ public class TestGUI extends JFrame implements Thread.UncaughtExceptionHandler, 
                 }
             }
         });
-        setIconImage(Toolkit.getDefaultToolkit().getImage(TestGUI.class.getResource("library/6wheel.png")));
+        setIconImage(Toolkit.getDefaultToolkit().getImage(ClientGUI.class.getResource("library/6wheel.png")));
 
         Thread.setDefaultUncaughtExceptionHandler(this);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
@@ -113,7 +116,7 @@ public class TestGUI extends JFrame implements Thread.UncaughtExceptionHandler, 
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() { // Event Dispatching Thread
-                new TestGUI();
+                new ClientGUI();
             }
         });
 

@@ -176,9 +176,8 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
     }
 
     private void setLimit(String msg){
-        String[] m = msg.split(";");
         try {
-            db.setLimit(m);
+            db.setLimit(msg);
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
