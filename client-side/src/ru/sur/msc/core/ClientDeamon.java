@@ -1,4 +1,4 @@
-package core;
+package ru.sur.msc.core;
 
 import net.core.SocketThread;
 
@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 
 public class ClientDeamon extends Thread {
 
@@ -56,7 +55,8 @@ public class ClientDeamon extends Thread {
 
     public void pingHost(String host) {
         try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(host, 80), 2000);
+            String[] temp = host.split(";");
+            socket.connect(new InetSocketAddress(temp[0], Integer.parseInt(temp[1])), 2000);
             socketThread.sendMessage("true".getBytes(StandardCharsets.UTF_8));
         } catch (IOException e) {
             socketThread.sendMessage("false".getBytes(StandardCharsets.UTF_8));
@@ -73,7 +73,6 @@ public class ClientDeamon extends Thread {
             hostname = ip.getHostName();
             socket.connect(new InetSocketAddress("google.com", 80));
             ip_send = socket.getLocalAddress().toString().substring(1);
-            System.out.println(ip_send);
             msg = msg + hostname + ";" + ip_send + ";";
         } catch (IOException e) {
             e.printStackTrace();

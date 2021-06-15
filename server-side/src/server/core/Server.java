@@ -114,10 +114,13 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
     public void onSocketStop(SocketThread thread) {
         logger.log(Level.SEVERE, "Client thread stopped");
         putLog("Client thread stopped");
+        String name = thread.getName();
 //        System.out.println(thread.getName());
         try {
             System.out.println("setting offline");
-            db.setOffline(thread.getName());
+            String ip = name.substring(name.lastIndexOf("/")+1, name.lastIndexOf(":"));
+            System.out.println(ip);
+            db.setOffline(ip);
         } catch (SQLException throwables) {
             throwables.printStackTrace();
         }
@@ -145,9 +148,11 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
             setLimit(msg);
         } else if(msg.contains("getDrives")) {
             getDrives(client);
+        } else if(msg.contains("getRam")) {
+            getRam(client);
         } else if(msg.contains("checkHost")) {
             msg = msg.substring(9);
-            checkHost(msg);
+            checkHost(msg, client);
         } else if(msg.equals("true") || msg.equals("false")){
             String send = msg;
             clients.forEach(v ->{
@@ -161,18 +166,24 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
         } else if(client.getName().equals("Admin")) {
             sendToAdmin(client, msg);
         } else {
-            System.out.println(msg);
+//            System.out.println(msg);
             dbSave(client, msg);
         }
     }
 
-    private void checkHost(String msg){
+    private void checkHost(String msg, ClientThread client){
         String[] temp = msg.split(";");
-        clients.forEach(v -> {
-            if(v.toString().contains(temp[0])){
-                v.sendMessage(("ping"+temp[1]).getBytes(StandardCharsets.UTF_8));
-            }
-        });
+        try {
+            clients.forEach(v -> {
+                if (v.toString().contains(temp[0])) {
+                    v.sendMessage(("ping" + temp[1] + ";" + temp[2]).getBytes(StandardCharsets.UTF_8));
+                } else {
+                    client.sendMessage("false".getBytes(StandardCharsets.UTF_8));
+                }
+            });
+        } catch (ArrayIndexOutOfBoundsException e){
+            System.out.println("Port is not here");
+        }
     }
 
     private void setLimit(String msg){
@@ -198,19 +209,33 @@ public class Server implements ServerSocketThreadListener, SocketThreadListener 
         }
     }
 
-    public void dbConnect(String DB_URL, String USER, String PASS){
-        db = new DBconnection(DB_URL, USER, PASS);
+    private void getRam(ClientThread client){
         try {
-            if (db.test()){
-                logger.log(Level.SEVERE, "DB connected");
-                putLog("DB connected");
-            }else{
-                logger.log(Level.SEVERE, "DB connection error");
-                putLog("DB connection error");
-            }
-        } catch (SQLException throwables) {
+            Map<String, List<Integer>> ram = db.getRam();
+
+            // Convert Map to byte array
+            ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
+            ObjectOutputStream out = new ObjectOutputStream(byteOut);
+            out.writeObject(ram);
+
+            client.sendMessage(byteOut.toByteArray());
+        } catch (SQLException | IOException throwables) {
             throwables.printStackTrace();
         }
+    }
+
+    public void dbConnect(String DB_URL, String USER, String PASS){
+        db = new DBconnection(DB_URL, USER, PASS, this);
+    }
+
+    public void succConnectDB(){
+        logger.log(Level.SEVERE, "DB connected");
+        putLog("DB connected");
+    }
+
+    public void errorConnectDB(){
+        logger.log(Level.SEVERE, "DB connection error");
+        putLog("DB connection error");
     }
 
     private void dbSave(ClientThread client, String msg){

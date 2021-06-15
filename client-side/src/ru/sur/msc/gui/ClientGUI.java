@@ -1,6 +1,6 @@
-package gui;
+package ru.sur.msc.gui;
 
-import core.ClientDeamon;
+import ru.sur.msc.core.ClientDeamon;
 import net.core.SocketThread;
 import net.core.SocketThreadListener;
 
@@ -10,11 +10,14 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowEvent;
 import java.awt.event.WindowStateListener;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import javax.swing.UIManager;
+import java.nio.charset.StandardCharsets;
 
 public class ClientGUI extends JFrame implements Thread.UncaughtExceptionHandler, ActionListener, SocketThreadListener {
 
@@ -26,6 +29,8 @@ public class ClientGUI extends JFrame implements Thread.UncaughtExceptionHandler
     private final JButton btnconnect = new JButton("Connect");
     private final JTextField tfIPAddress = new JTextField("127.0.0.1");
     private final JTextField tfPort = new JTextField("8189");
+
+    private final File serverIP = new File("server.txt");
 
     private ClientDeamon clD;
 
@@ -110,6 +115,20 @@ public class ClientGUI extends JFrame implements Thread.UncaughtExceptionHandler
 
         setResizable(false);
         setVisible(true);
+
+        if(serverIP.exists()) {
+            connect();
+            if (socketThread != null) {
+                try {
+                    tray.add(trayIcon);
+                } catch (AWTException e) {
+                    e.printStackTrace();
+                }
+                setVisible(false);
+                clD = new ClientDeamon("test", socketThread);
+                clD.start();
+            }
+        }
     }
 
     public static void main(String[] args) {
@@ -159,10 +178,42 @@ public class ClientGUI extends JFrame implements Thread.UncaughtExceptionHandler
 
     private void connect() {
         try {
-            Socket socket = new Socket(tfIPAddress.getText(), Integer.parseInt(tfPort.getText()));
-            socketThread = new SocketThread(this, "Client", socket);
-            System.out.println("connection ok");
+            if(serverIP.exists()){
+                String ip = "";
+                String port = "";
+                FileInputStream fis = new FileInputStream(serverIP);
+                int i;
+
+                while((i=fis.read())!= (int)':'){
+                    ip = ip + (char)i;
+                    System.out.print((char)i);
+                }
+                while ((i=fis.read()) != -1){
+                    port = port + (char)i;
+                    System.out.print((char)i);
+                }
+                System.out.println();
+                Socket socket = new Socket(ip, Integer.parseInt(port));
+                socketThread = new SocketThread(this, "Client", socket);
+                System.out.println("connection ok");
+                fis.close();
+            }else{
+                Socket socket = new Socket(tfIPAddress.getText(), Integer.parseInt(tfPort.getText()));
+                socketThread = new SocketThread(this, "Client", socket);
+                System.out.println("connection ok");
+                boolean create = serverIP.createNewFile();
+                if (create) {
+                    FileOutputStream fio = new FileOutputStream(serverIP);
+                    fio.write(tfIPAddress.getText().getBytes(StandardCharsets.UTF_8));
+                    fio.write(":".getBytes(StandardCharsets.UTF_8));
+                    fio.write(tfPort.getText().getBytes(StandardCharsets.UTF_8));
+                    fio.close();
+                } else {
+                    System.out.println("File is not created");
+                }
+            }
         } catch (IOException exception) {
+
             showException(Thread.currentThread(), exception);
         }
     }
@@ -174,20 +225,18 @@ public class ClientGUI extends JFrame implements Thread.UncaughtExceptionHandler
 
     @Override
     public void onSocketStop(SocketThread thread) {
-        try {
-            InetAddress ip = InetAddress.getLocalHost();
-            thread.sendMessage(("close " + ip).getBytes());
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
+
     }
 
     @Override
     public void onSocketReady(SocketThread thread, Socket socket) {
-        try {
-            InetAddress ip = InetAddress.getLocalHost();
-            thread.sendMessage(("check " + ip).getBytes());
-        } catch (UnknownHostException e) {
+        try(Socket sok = new Socket()) {
+            sok.connect(new InetSocketAddress("google.com", 80));
+            String ip_send = sok.getLocalAddress().toString().substring(1);
+            thread.sendMessage(("check " + ip_send).getBytes());
+        } catch (UnknownHostException e ) {
+            e.printStackTrace();
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }

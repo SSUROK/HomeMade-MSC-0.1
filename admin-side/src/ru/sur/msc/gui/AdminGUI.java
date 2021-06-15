@@ -1,6 +1,6 @@
-package gui;
+package ru.sur.msc.gui;
 
-import core.Redo;
+import ru.sur.msc.core.Redo;
 import net.core.SocketThread;
 import net.core.SocketThreadListener;
 
@@ -14,14 +14,12 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.*;
 import java.util.List;
-import java.util.Map;
 
 public class AdminGUI extends JFrame implements ListSelectionListener, ActionListener, Thread.UncaughtExceptionHandler, SocketThreadListener {
 
-    private static final int WIDTH = 600;
+    private static final int WIDTH = 700;
     private static final int HEIGHT = 300;
 
     private static CardLayout cardLayout = new CardLayout();
@@ -37,7 +35,7 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
     private static String chsnPC;
     private static Integer askTime = 10000;
     private static String availableSpace = "";
-    private static JLabel label = new JLabel("Available Space. Click on disk to display");
+    private static JLabel spaceLabel = new JLabel("Available Space. Click on disk to display");
     private static JTextField criticalSize = new JTextField();
 
     private static DefaultListModel<String> dlm = new DefaultListModel<>();
@@ -48,11 +46,10 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
     private static final JList<String> driveList = new JList<>(drives);
     private static final JScrollPane scrollListOfDrives = new JScrollPane(driveList);
 
-    private final JTextField pc_name = new JTextField("PC name");
-    private final JTextField os = new JTextField("PC OS");
-    private final JTextField ip = new JTextField("PC IP");
-    private final JTextField ramspace = new JTextField("PC ram space");
+    private static List<String> pc_spec_names = Arrays.asList("PC name", "PC OS", "PC IP", "PC ram space", "Last Online");
+
     private final JTextField url = new JTextField();
+    private final JTextField port = new JTextField();
     private final JTextField ramCritical = new JTextField();
 
     private final JButton btnCheckHost = new JButton("Check");
@@ -73,6 +70,8 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
     private static Redo redo;
 
     private static Map<String, Map<String, List<Integer>>> discList;
+    private static Map<String, List<Integer>> ramList;
+    private static int flag = 0;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(new Runnable() {
@@ -99,6 +98,7 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
         controller.addView(createHome(), DefaultViewController.HOME);
         controller.addView(createDrives(), "drives");
         controller.addView(createCheckHost(), "checkHost");
+        controller.addView(createChangeAskTime(), "changeAskTime");
 
         controller.goHome();
 
@@ -156,7 +156,7 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
         panelSetSize.add(new JLabel("Critical size:"));
         criticalSize.addActionListener(this);
         panelSetSize.add(criticalSize);
-        panelmini.add(label);
+        panelmini.add(spaceLabel);
         panelmini.add(panelSetSize);
         panel.add(panelmini, BorderLayout.EAST);
 
@@ -165,9 +165,14 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
 
     private JPanel createCheckHost(){
 
-        JPanel panel = new JPanel(new GridLayout(3, 1, 10, 20));
-        panel.add(new JLabel("Check host by URL"));
-        panel.add(url);
+        JPanel panel = new JPanel(new GridLayout(3, 1, 10, 10));
+        panel.add(new JLabel("Check host by URL/IP"));
+        JPanel address = new JPanel(new GridLayout(2, 2, 10, 10));
+        address.add(new JLabel("URL/IP"));
+        address.add(new JLabel("Port"));
+        address.add(url);
+        address.add(port);
+        panel.add(address);
         url.setPreferredSize(new Dimension(0, 30));
         url.addActionListener(this);
         ledPanel.add(btnCheckHost);
@@ -188,20 +193,31 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
     }
 
     private void createPanelName(){
-        pc_name.setEnabled(false);
-        pc_name.setDisabledTextColor(Color.BLACK);
-        os.setEnabled(false);
-        os.setDisabledTextColor(Color.BLACK);
-        ip.setEnabled(false);
-        ip.setDisabledTextColor(Color.BLACK);
-        ramspace.setEnabled(false);
-        ramspace.setDisabledTextColor(Color.BLACK);
-
-        panelNames.add(pc_name);
-        panelNames.add(os);
-        panelNames.add(ip);
-        panelNames.add(ramspace);
+        pc_spec_names.forEach(name ->{
+            JLabel temp = new JLabel(name);
+            panelNames.add(temp);
+        });
         panelNames.repaint();
+    }
+
+    private JPanel createChangeAskTime(){
+
+        JPanel panel = new JPanel();
+        JLabel text = new JLabel("Current ask time (in sec)");
+        panel.add(text);
+        Integer i = askTime/1000;
+        JTextField time = new JTextField(i.toString());
+        time.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                JTextField t = (JTextField) actionEvent.getSource();
+                askTime = Integer.parseInt(t.getText()) * 1000;
+                redo.setAskTime(askTime);
+            }
+        });
+        panel.add(time);
+
+        return panel;
     }
 
     private void connect() {
@@ -252,7 +268,7 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
             if (!chsnPC.equals("") && !url.getText().equals("")) {
                 String ip = pc_specs.get(2);
                 socketThread.sendMessage(
-                        ("checkHost" + ip + ";" + url.getText()).getBytes(StandardCharsets.UTF_8));
+                        ("checkHost" + ip + ";" + url.getText() + ";" + port.getText()).getBytes(StandardCharsets.UTF_8));
             }
         } else if(src == ramCritical){
             setCriticalRam();
@@ -298,15 +314,22 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
             pc_specs = Arrays.asList(msg.split(";"));
             if (!pc_specs.get(0).equals(""))
                 fillSpecs();
-        } else if(msg.equals("true") || msg.equals("false")){
+        } else if(msg.equals("true") || msg.equals("false")) {
             ledSetter(msg);
         }else{
             try {
                 // Parse byte array to Map
                 ByteArrayInputStream byteIn = new ByteArrayInputStream(bytemsg);
                 ObjectInputStream in = new ObjectInputStream(byteIn);
-                discList = (Map<String, Map<String, List<Integer>>>) in.readObject();
-                redo.discAnalyzer(discList);
+                if (flag % 2 == 0){
+                    discList = (Map<String, Map<String, List<Integer>>>) in.readObject();
+                    redo.setDiscList(discList);
+                    flag++;
+                } else {
+                    ramList = (Map<String, List<Integer>>) in.readObject();
+                    redo.setRamList(ramList);
+                    flag++;
+                }
             } catch (ClassNotFoundException | IOException e) {
                 e.printStackTrace();
             }
@@ -372,7 +395,7 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
 
     public void setDefectivePCs(List<String> defectivePCs){
         this.defectivePCs.clear();
-        defectivePCs.forEach(v -> this.defectivePCs.add(v));
+        this.defectivePCs.addAll(defectivePCs);
     }
 
     private void update(){
@@ -400,31 +423,28 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
     private void fillSpecs(){
         panelSpecs.removeAll();
         pc_specs.forEach(spec ->{
-            JTextField temp = new JTextField(spec);
-            temp.setEnabled(false);
-            temp.setDisabledTextColor(Color.BLACK);
+            JLabel temp = new JLabel(spec);
             JPanel panel = new JPanel(new GridLayout(1, 2));
             if(spec.equals(pc_specs.get(3))){
+                if (Integer.parseInt(spec) < Integer.parseInt(pc_specs.get(4))) {
+                    ramCritical.setBackground(Color.red);
+                } else {
+                    ramCritical.setBackground(Color.white);
+                }
                 panel.add(temp);
                 panel.add(ramCritical);
                 panelSpecs.add(panel);
-            }else if(spec.equals(pc_specs.get(4))){
+            }else if(spec.equals(pc_specs.get(4))) {
                 ramCritical.setText(spec);
-                if(Integer.parseInt(spec)>Integer.parseInt(pc_specs.get(3))){
-                    ramspace.setBackground(Color.red);
-                    defectivePCs.add(chsnPC);
-                }else if (defectivePCs.contains(chsnPC)){
-                    ramspace.setBackground(Color.white);
-                    defectivePCs.remove(chsnPC);
-                }
+            }else if(pc_specs.size() >= 6 &&  spec.equals(pc_specs.get(5))){
+                panelSpecs.add(temp);
             }else
                 panelSpecs.add(temp);
+
+            if(pc_specs.size() < 6 &&  spec.equals(pc_specs.get(4)))
+                panelSpecs.add(new JLabel("Online Now"));
         });
         revalidate();
-    }
-
-    private void checkCritical(){
-
     }
 
     public String getChsnPC(){
@@ -463,7 +483,7 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
             int selected = ((JList<?>) src).getSelectedIndex();
             if (selected != -1) {
                 availableSpace = discList.get(chsnPC).get(drives.get(selected)).get(0).toString();
-                label.setText("Available Space: " + availableSpace + "GB");
+                spaceLabel.setText("Available Space: " + availableSpace + "GB");
                 criticalSize.setText(discList.get(chsnPC).get(drives.get(selected)).get(1).toString());
                 repaint();
             }
@@ -486,24 +506,7 @@ public class AdminGUI extends JFrame implements ListSelectionListener, ActionLis
         change_ask_time.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                panelSpecs.removeAll();
-                JTextField text = new JTextField("Current ask time (in sec)");
-                text.setEnabled(false);
-                text.setDisabledTextColor(Color.BLACK);
-                panelSpecs.add(text);
-                Integer i = askTime/1000;
-                String time = i.toString();
-                text = new JTextField(time);
-                text.addActionListener(new ActionListener() {
-                    @Override
-                    public void actionPerformed(ActionEvent actionEvent) {
-                        JTextField t = (JTextField) actionEvent.getSource();
-                        askTime = Integer.parseInt(t.getText()) * 1000;
-                        redo.setAskTime(askTime);
-                    }
-                });
-                panelSpecs.add(text);
-                panelSpecs.repaint();
+                controller.goToMapByName("changeAskTime");
             }
         });
         return settings;

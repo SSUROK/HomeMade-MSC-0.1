@@ -1,11 +1,9 @@
-package core;
+package ru.sur.msc.core;
 
-import gui.AdminGUI;
+import ru.sur.msc.gui.AdminGUI;
 import net.core.SocketThread;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +16,8 @@ public class Redo extends Thread {
     private final AdminGUI gui;
     private final SocketThread socketThread;
     private static Integer askTime;
+    private static Map<String, Map<String, List<Integer>>> discList;
+    private static Map<String, List<Integer>> ramList;
 
     public Redo(DefaultListModel<String> dlm, String name, SocketThread socketThread, AdminGUI gui) {
         super(name);
@@ -35,7 +35,10 @@ public class Redo extends Thread {
         while (!isInterrupted()) {
             try {
                 pcListUpdater();
-                getdrives();
+                getDrives();
+                getRam();
+                Thread.sleep(100);
+                analyzer();
 
                 Thread.sleep(askTime); //1000 - 1 сек
             } catch (InterruptedException ex) {
@@ -45,12 +48,17 @@ public class Redo extends Thread {
         }
     }
 
-    public void getdrives(){
+    public void getDrives(){
         String msg = "getDrives";
         socketThread.sendMessage(msg.getBytes(StandardCharsets.UTF_8));
     }
 
-    public void discAnalyzer(Map<String, Map<String, List<Integer>>> discList){
+    public void getRam(){
+        String msg = "getRam";
+        socketThread.sendMessage(msg.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public List<String> discAnalyzer(Map<String, Map<String, List<Integer>>> discList){
         List<String> overloadedDrives = new ArrayList<>();
         discList.forEach((k, v) -> {
             v.forEach((name, value) -> {
@@ -59,7 +67,37 @@ public class Redo extends Thread {
                 }
             });
         });
-        gui.setDefectivePCs(overloadedDrives);
+
+
+        return overloadedDrives;
+    }
+
+    public List<String> ramAnalyzer(Map<String, List<Integer>> ramList){
+        List<String> overloadedRam = new ArrayList<>();
+        ramList.forEach((k, v) -> {
+            if(v.get(0) < v.get(1)){
+                overloadedRam.add(k);
+            }
+        });
+
+        return overloadedRam;
+    }
+
+    public void analyzer(){
+        List<String> defectivePCs = new ArrayList<>();
+
+        defectivePCs.addAll(discAnalyzer(discList));
+        defectivePCs.addAll(ramAnalyzer(ramList));
+
+        gui.setDefectivePCs(defectivePCs);
+    }
+
+    public static void setDiscList(Map<String, Map<String, List<Integer>>> discList) {
+        Redo.discList = discList;
+    }
+
+    public static void setRamList(Map<String, List<Integer>> ramList) {
+        Redo.ramList = ramList;
     }
 
     private void pcListUpdater(){

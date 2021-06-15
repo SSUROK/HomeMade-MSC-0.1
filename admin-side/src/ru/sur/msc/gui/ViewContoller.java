@@ -1,4 +1,4 @@
-package gui;
+package ru.sur.msc.gui;
 
 public interface ViewContoller {
 
